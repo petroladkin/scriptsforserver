@@ -93,6 +93,10 @@ echo "######   restart nginx php-fpm"
 /etc/init.d/php-fpm restart
 /etc/init.d/nginx restart
 
+if [[ "$(cat /etc/pela/.config | grep 'vsftpd_install=YES')" != "" ]];
+    useradd $folder_name -g nginx -p $folder_name -d /usr/share/nginx/html/$folder_name
+fi
+
 ###
 echo "loomla_site=$folder_name" >> /etc/pela/.config
 echo "loomla_db_$folder_name=$mysql_db" >> /etc/pela/.config

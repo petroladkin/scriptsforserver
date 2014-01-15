@@ -249,9 +249,9 @@ then
 
 	echo "######"
 	echo "######    1 - create LEMP system"
-	echo "######    2 - create LEPP system"
-	echo "######    3 - create LAMP system"
-	echo "######    4 - create LAPP system"
+	# echo "######    2 - create LEPP system"
+	# echo "######    3 - create LAMP system"
+	# echo "######    4 - create LAPP system"
 
 	
    # 	 joomla
@@ -281,15 +281,15 @@ then
 		echo "[pela_configure]:" >> /etc/pela/.config
 		echo "lemp_install=YES" >> /etc/pela/.config
 		###
-	elif [[ "$COMMAND" == "2" ]];
-	then
-		echo "######   Sorry: coming soon"
-	elif [[ "$COMMAND" == "3" ]];
-	then
-		echo "######   Sorry: coming soon"
-	elif [[ "$COMMAND" == "4" ]];
-	then
-		echo "######   Sorry: coming soon"
+	# elif [[ "$COMMAND" == "2" ]];
+	# then
+	# 	echo "######   Sorry: coming soon"
+	# elif [[ "$COMMAND" == "3" ]];
+	# then
+	# 	echo "######   Sorry: coming soon"
+	# elif [[ "$COMMAND" == "4" ]];
+	# then
+	# 	echo "######   Sorry: coming soon"
 	else
 		echo "######   Error: selected wrong number"
 	fi
