@@ -1,10 +1,7 @@
 CWD=$(pwd)
-PLATFORM=$(uname -m)
-FILE_SUFIX=$PLATFORM
-if [[ "$PLATFORM" == "i386" ]];
-then
-    FILE_SUFIX="i686"
-fi
+
+PLATFORM=$(uname -i)
+FILE_SUFIX=$(uname -m)
 
 RDYN="$CWD/../helpers/read_yn.sh"
 RDVL="$CWD/../helpers/read_value.sh"
