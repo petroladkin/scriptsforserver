@@ -14,8 +14,8 @@ else
 
 	if [[ "$(cat /etc/issue | grep 'CentOS')" != "" ]];
 	then
-		# cd $CWD/centos
-		./centos/run.sh $1
+		cd $CWD/centos
+		$CWD/centos/run.sh $1
 	else
 		echo "######   Error: not supported linux system"
 	fi
