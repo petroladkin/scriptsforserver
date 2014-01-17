@@ -388,7 +388,7 @@ then
     fi
 fi
 
-if [[ "$($CHCV lemp_install)" == "NO" ]];
+if [[ "$($CHCV lemp_install)" == "YES" ]];
 then
     echo "######"
     echo "######   it is LEMP system"
