@@ -57,7 +57,7 @@ server {
     listen      80;" > /etc/nginx/conf.d/$FOLDER_NAME.conf
 if [[ "$SECONDPORT_YN" == "YES" ]];
 then
-    echo "   listen      "$SECOND_PORT";" >> /etc/nginx/conf.d/$FOLDER_NAME.conf
+    echo "    listen      "$SECOND_PORT";" >> /etc/nginx/conf.d/$FOLDER_NAME.conf
 fi
 echo "    server_name $SERVER_NAME www.$SERVER_NAME;
     root /usr/share/nginx/html/$FOLDER_NAME;
