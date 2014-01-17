@@ -1,312 +1,398 @@
 CWD=$(pwd)
-
-if [[ "$(cat /etc/pela/.config | grep 'pela_init_system')" == "" ]];
+PLATFORM=$(uname -m)
+FILE_SUFIX=$PLATFORM
+if [[ "$PLATFORM" == "i386" ]];
 then
-	echo "######"
-	echo "######   init system"
-
-	echo "######"
-	echo "######   change root password"
-	passwd
-
-	echo "######"
-	echo "######   add admin user"
-	read -p "######  ?  Please enter admin name: " ADMIN_NAME
-	adduser $ADMIN_NAME
-	passwd $ADMIN_NAME
-
-	echo "######"
-	echo "######   configure system"
-	sed -i '/^root\tALL=(ALL)/a '$ADMIN_NAME'\tALL=(ALL)\tALL' /etc/sudoers
-	sed -i '/^#Port 22/c Port 22' /etc/ssh/sshd_config
-	sed -i '/^#PermitRootLogin/c PermitRootLogin no' /etc/ssh/sshd_config
-	sed -i '$a UseDNS no' /etc/ssh/sshd_config
-	sed -i '$a AllowUsers '$ADMIN_NAME  /etc/ssh/sshd_config
-	mkdir /etc/pela
-
-	### 
-	echo "[pela_init_system]:" > /etc/pela/.config
-	echo "admin='$ADMIN_NAME'" >> /etc/pela/.config
-	###
-
-	echo "######"
-	read -p "######  ?  Do you want to reboot the system [Y/n]: " REBOOT_YN
-	if [[ "$REBOOT_YN" == "Y" || "$REBOOT_YN" == "y" || "$REBOOT_YN" == "" ]];
-	then
-		echo "######   restarting system..."
-		shutdown -r now
-	fi
-
-	echo "######"
-	read -p "######  ?  Do you want to continue to set up the system [Y/n]: " CONTINUE_YN
-	if [[ "$CONTINUE_YN" != "Y" && "$CONTINUE_YN" != "y" && "$CONTINUE_YN" != "" ]];
-	then
-		exit 0;
-	fi
+    FILE_SUFIX="i686"
 fi
 
-if [[ "$(cat /etc/pela/.config | grep 'pela_base_configure')" == "" ]];
+RDYN="$CWD/../helpers/read_yn.sh"
+RDVL="$CWD/../helpers/read_value.sh"
+CRCF="$CWD/../helpers/create_config.sh"
+ADCG="$CWD/../helpers/add_config_group.sh"
+ADCV="$CWD/../helpers/add_config_value.sh"
+CHCG="$CWD/../helpers/check_config_group.sh"
+CHCV="$CWD/../helpers/check_config_value.sh"
+GTCV="$CWD/../helpers/get_config_value.sh"
+GTLF="$CWD/../helpers/get_latest_file.sh"
+
+
+BASE_INIT="NO"
+if [[ ! -f "/etc/pela/.config" ]];
 then
-	echo "######"
-	echo "######   base configure system"
-
-	echo "######"
-	read -p "######  ?  Do you want to install FTP server [y/N]: " FTP_YN
-	if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-	then
-		echo "######"
-		echo "######   istall vsftpd"
-		yum -y install vsftpd
-
-		echo "######"
-		echo "######   configure vsftpd"
-		sed -i '/^#chroot_local_user=YES/c chroot_local_user=YES' /etc/vsftpd/vsftpd.conf
-		read -p "######  ?  Do you want to disabled anonymous [Y/n]: " FTP_ANONYM_YN
-		if [[ "$FTP_ANONYM_YN" == "Y" || "$FTP_ANONYM_YN" == "y" || "$FTP_ANONYM_YN" == "" ]];
-		then
-			sed -i '/^anonymous_enable=YES/c anonymous_enable=NO' /etc/vsftpd/vsftpd.conf
-		fi
-
-		echo "######"
-		echo "######   restart vsftpd"
-		chkconfig vsftpd on
-		/etc/init.d/vsftpd restart
-	fi
-
-	echo "######"
-	read -p "######  ?  Do you want to enable FireWall [Y/n]: " FIREWALL_YN
-	if [[ "$FIREWALL_YN" == "Y" || "$FIREWALL_YN" == "y" || "$FIREWALL_YN" == "" ]];
-	then
-		echo "######"
-		echo "######   enable FireWall"
-		$CWD/firewall/disable.sh
-		$CWD/firewall/enable.sh
-
-		echo "######"
-		read -p "######  ?  Do you want to install Knock server [Y/n]: " KNOCK_YN
-		if [[ "$KNOCK_YN" == "Y" || "$KNOCK_YN" == "y" || "$KNOCK_YN" == "" ]];
-		then
-			echo "######"
-			echo "######   istall knockd"
-			yum -y install http://li.nux.ro/download/nux/dextop/el6/i386/knock-server-0.5-7.el6.nux.i686.rpm
-
-			echo "######"
-			echo "######   configure knockd"
-			echo "[options]" 		>  /etc/knockd.conf
-			echo "    UseSysLog" 	>> /etc/knockd.conf
-
-			echo "######"
-			read -p "######  ?  Do you want to configure SSH port [Y/n]: " KNOCK_SSH_YN
-			if [[ "$KNOCK_SSH_YN" == "Y" || "$KNOCK_SSH_YN" == "y" || "$KNOCK_SSH_YN" == "" ]];
-			then
-				read -p "######  ?  Please enter knocked open SSH port: " KNOCK_SSH_PORT
-				echo "[openSSH]"																>> /etc/knockd.conf
-				echo "    sequence       = $KNOCK_SSH_PORT:udp, 1982:udp, 1985:udp, 2011:udp"	>> /etc/knockd.conf
-				echo "    seq_timeout    = 5"													>> /etc/knockd.conf
-				echo "    tcpflags       = syn,ack"												>> /etc/knockd.conf
-				echo "    start_command = $CWD/firewall/openport.sh 22"							>> /etc/knockd.conf
-				echo "    cmd_timeout   = 10"													>> /etc/knockd.conf
-				echo "    stop_command  = $CWD/firewall/closeport.sh 22"						>> /etc/knockd.conf
-        	else
-				$CWD/firewall/openport.sh 22
-				$CWD/firewall/saveconfig.sh
-			fi
-			if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-			then
-				echo "######"
-				read -p "######  ?  Do you want to configure FTP port [Y/n]: " KNOCK_FTP_YN
-				if [[ "$KNOCK_FTP_YN" == "Y" || "$KNOCK_FTP_YN" == "y" || "$KNOCK_FTP_YN" == "" ]];
-				then
-					read -p "######  ?  Please enter knocked open FPT port: " KNOCK_FTP_PORT
-					echo "[openFTP]"																			>> /etc/knockd.conf
-					echo "    sequence       = $KNOCK_FTP_PORT:udp, 1982:udp, 1985:udp, 2011:udp"				>> /etc/knockd.conf
-					echo "    seq_timeout    = 5"																>> /etc/knockd.conf
-					echo "    tcpflags       = syn,ack"															>> /etc/knockd.conf
-       				echo "    start_command = $CWD/firewall/openport.sh 20; $CWD/firewall/openport.sh 21"		>> /etc/knockd.conf
-        			echo "    cmd_timeout   = 10"																>> /etc/knockd.conf
-        			echo "    stop_command  = $CWD/firewall/closeport.sh 20; $CWD/firewall/closeport.sh 21"		>> /etc/knockd.conf
-        		else
-					$CWD/firewall/openport.sh 20
-					$CWD/firewall/openport.sh 21
-					$CWD/firewall/saveconfig.sh
-				fi
-			fi
-
-			echo "######"
-			echo "######   restart knockd"
-			chkconfig knockd on
-			/etc/init.d/knockd restart
-		else
-			$CWD/firewall/openport.sh 22
-			if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-			then
-				$CWD/firewall/openport.sh 20
-				$CWD/firewall/openport.sh 21
-			fi
-			$CWD/firewall/saveconfig.sh
-		fi
-
-		echo "######"
-		read -p "######  ?  Do you want to install Fail2Ban [Y/n]: " FAIL2BAN_YN
-		if [[ "$FAIL2BAN_YN" == "Y" || "$FAIL2BAN_YN" == "y" || "$FAIL2BAN_YN" == "" ]];
-		then
-			echo "######"
-			echo "######   istall fail2ban"
-			yum -y install http://pkgs.repoforge.org/rpmforge-release/rpmforge-release-0.5.3-1.el6.rf.i686.rpm
-			yum -y install fail2ban
-
-			echo "######"
-			echo "######   configure fail2ban"
-
-			echo "######"
-			read -p "######  ?  Please enter email address to send a notification message: " FAIL2BAN_DEST_EMAIL
-			FAIL2BAN_MASHINE_NAME=$(uname -n)
-
-			echo "######"
-			read -p "######  ?  Do you want to configure 'ssh-iptables' port [Y/n]: " FAIL2BAN_SSH_YN
-			if [[ "$FAIL2BAN_SSH_YN" == "Y" || "$FAIL2BAN_SSH_YN" == "y" || "$FAIL2BAN_SSH_YN" == "" ]];
-			then
-				sed -i '/^\[ssh-iptables\]/,+5c \[ssh-iptables\]\n\nenable   = true\nfilter   = sshd\naction   = iptables[name=SSH, port=ssh, protocol=tcp]\n\t   sendmail-whois[name=SSH, dest=$FAIL2BAN_DEST_EMAIL, sender=fail2ban@$FAIL2BAN_MASHINE_NAME]' /etc/fail2ban/jail.conf
-			fi
-
-			if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-			then
-				echo "######"
-				read -p "######  ?  Do you want to configure 'vsftpd-iptables' port [Y/n]: " FAIL2BAN_FTP_YN
-				if [[ "$FAIL2BAN_FTP_YN" == "Y" || "$FAIL2BAN_FTP_YN" == "y" || "$FAIL2BAN_FTP_YN" == "" ]];
-				then
-					sed -i '/^\[vsftpd-iptables\]/,+5c \[vsftpd-iptables\]\n\nenable   = true\nfilter   = vsftpd\naction   = iptables[name=VSFTPD, port=ftp, protocol=tcp]\n\t   sendmail-whois[name=VSFTPD, dest=$FAIL2BAN_DEST_EMAIL, sender=fail2ban@$FAIL2BAN_MASHINE_NAME]' /etc/fail2ban/jail.conf
-				fi
-			fi
-
-			echo "######"
-			echo "######   restart fail2ban"
-			chkconfig fail2ban on
-			/etc/init.d/fail2ban restart
-		fi
-	fi
-
-	### 
-	echo "[pela_base_configure]:"     >>  /etc/pela/.config
-	if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-	then
-		echo "vsftpd_install=YES" >> /etc/pela/.config
-		if [[ "$FTP_ANONYM_YN" == "Y" || "$FTP_ANONYM_YN" == "y" || "$FTP_ANONYM_YN" == "" ]];
-		then
-			echo "vsftpd_disable_anonym=YES" >> /etc/pela/.config
-		fi
-	fi
-	if [[ "$FIREWALL_YN" == "Y" || "$FIREWALL_YN" == "y" || "$FIREWALL_YN" == "" ]];
-	then
-		echo "firewall_enable=YES" >> /etc/pela/.config
-		if [[ "$KNOCK_YN" == "Y" || "$KNOCK_YN" == "y" || "$KNOCK_YN" == "" ]];
-		then
-			echo "knockd_install=YES" >> /etc/pela/.config
-			if [[ "$KNOCK_SSH_YN" == "Y" || "$KNOCK_SSH_YN" == "y" || "$KNOCK_SSH_YN" == "" ]];
-			then
-				echo "knockd_ssh_port=$KNOCK_SSH_PORT" >> /etc/pela/.config
-			fi
-			if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-			then
-				if [[ "$KNOCK_FTP_YN" == "Y" || "$KNOCK_FTP_YN" == "y" || "$KNOCK_FTP_YN" == "" ]];
-				then
-					echo "knockd_ftp_port=$KNOCK_FTP_PORT" >> /etc/pela/.config
-				fi
-			fi
-		fi
-		if [[ "$FAIL2BAN_YN" == "Y" || "$FAIL2BAN_YN" == "y" || "$FAIL2BAN_YN" == "" ]];
-		then
-			echo "fail2ban_install=YES" >> /etc/pela/.config
-			echo "fail2ban_dest_email=$FAIL2BAN_DEST_EMAIL" >> /etc/pela/.config
-			echo "fail2ban_mashine_name=$FAIL2BAN_MASHINE_NAME" >> /etc/pela/.config
-			if [[ "$FAIL2BAN_SSH_YN" == "Y" || "$FAIL2BAN_SSH_YN" == "y" || "$FAIL2BAN_SSH_YN" == "" ]];
-			then
-				echo "fail2ban_ssh_enable=YES" >> /etc/pela/.config
-			fi
-			if [[ "$FTP_YN" == "Y" || "$FTP_YN" == "y" ]];
-			then
-				if [[ "$FAIL2BAN_FTP_YN" == "Y" || "$FAIL2BAN_FTP_YN" == "y" || "$FAIL2BAN_FTP_YN" == "" ]];
-				then
-					echo "fail2ban_vsftpd_enable=YES" >> /etc/pela/.config
-				fi
-			fi
-		fi
-	fi
-	###
-
-	echo "######"
-	read -p "######  ?  Do you want to continue to set up the system [Y/n]: " CONTINUE_YN
-	if [[ "$CONTINUE_YN" != "Y" && "$CONTINUE_YN" != "y" && "$CONTINUE_YN" != "" ]];
-	then
-		exit 0;
-	fi
+    BASE_INIT="YES"
+else
+    if [[ "$($CHCG init_system)" == "" || "$1" == "-f" ]];
+    then
+        BASE_INIT="YES"
+    fi
 fi
 
-if [[ "$(cat /etc/pela/.config | grep 'pela_configure')" == "" ]];
+
+if [[ "$BASE_INIT" == "YES" ]];
 then
-	echo "######"
-	echo "######   create system"
+    echo "######"
+    echo "######   init system"
 
-	echo "######"
-	echo "######    1 - create LEMP system"
-	# echo "######    2 - create LEPP system"
-	# echo "######    3 - create LAMP system"
-	# echo "######    4 - create LAPP system"
+    if [[ ! -f "/etc/pela/.config" ]];
+    then
+        $CRCF
+    fi
 
-	
-   # 	 joomla
-   # 	 wordpress
-   # 	 pelican
-   # 	 octopress
-   #   django
-   # VPNServer
-   # MailServer
-   # NAS
-   #  samba
-   #  transmision
-   #  dropbox-downloader
-   #  backup-scripts
-   # Others
+    if [[ "$($CHCG init_system)" == "NO" ]];
+    then
+        $ADCG init_system
+    fi
 
+    REBOT_SYSTEM="NO"
 
+    CREATEADMIN_YN="NO"
+    if [[ "$($CHCV change_root_password)" == "YES" ]];
+    then
+        CREATEADMIN_YN="YES"
+    else
+        echo "######"
+        CHANGEROOTPASS_YN=$($RDYN "######  ?  Do you want to change password")
+        if [[ "$CHANGEROOTPASS_YN" == "YES" ]];
+        then
+            echo "######"
+            echo "######   change root password"
+            passwd
 
-	echo "######"
-	read -p "######  ?  Please choose command: " COMMAND
-	if [[ "$COMMAND" == "1" ]];
-	then
-		cd $CWD/lemp
-		$CWD/lemp/install.sh
+            REBOT_SYSTEM="YES"
 
-		### 
-		echo "[pela_configure]:" >> /etc/pela/.config
-		echo "lemp_install=YES" >> /etc/pela/.config
-		###
-	# elif [[ "$COMMAND" == "2" ]];
-	# then
-	# 	echo "######   Sorry: coming soon"
-	# elif [[ "$COMMAND" == "3" ]];
-	# then
-	# 	echo "######   Sorry: coming soon"
-	# elif [[ "$COMMAND" == "4" ]];
-	# then
-	# 	echo "######   Sorry: coming soon"
-	else
-		echo "######   Error: selected wrong number"
-	fi
+            $ADCV change_root_password yes           
+        fi
+    fi
 
-	echo "######"
-	read -p "######  ?  Do you want to continue to set up the system [Y/n]: " CONTINUE_YN
-	if [[ "$CONTINUE_YN" != "Y" && "$CONTINUE_YN" != "y" && "$CONTINUE_YN" != "" ]];
-	then
-		exit 0;
-	fi
+    CREATEADMIN_YN="NO"
+    if [[ "$($CHCV admin_name)" == "YES" ]];
+    then
+        CREATEADMIN_YN="YES"
+    else
+        echo "######"
+        CREATEADMIN_YN=$($RDYN "######  ?  Do you want to create admin account")
+        if [[ "$CREATEADMIN_YN" == "YES" ]];
+        then
+            echo "######"
+            echo "######   add admin user"
+            ADMIN_NAME=$($RDVL "######  ?  Please enter admin name")
+            adduser $ADMIN_NAME
+            passwd $ADMIN_NAME
+
+            echo "######"
+            echo "######   configure system"
+            sed -i '/^root\tALL=(ALL)/a '$ADMIN_NAME'\tALL=(ALL)\tALL' /etc/sudoers
+            sed -i '/^#Port 22/c Port 22' /etc/ssh/sshd_config
+            sed -i '$a UseDNS no' /etc/ssh/sshd_config
+            sed -i '$a AllowUsers '$ADMIN_NAME  /etc/ssh/sshd_config
+
+            REBOT_SYSTEM="YES"
+
+            $ADCV admin_name $ADMIN_NAME
+        fi
+    fi
+
+    if [[ $CREATEADMIN_YN == "YES" &&  "$($CHCV block_root_ssh)" == "NO" ]];
+    then
+        echo "######"
+        BLOCKSSHROOT_YN=$($RDYN "######  ?  Do you want to block root access to ssh")
+        if [[ "$BLOCKSSHROOT_YN" == "YES" ]];
+        then
+            echo "######"
+            echo "######   blocking root to ssh"
+            sed -i '/^#PermitRootLogin/c PermitRootLogin no' /etc/ssh/sshd_config
+
+            $ADCV block_root_ssh yes
+        fi
+    fi
+
+    if [[ "$REBOT_SYSTEM" == "YES" ]];
+    then
+        echo "######"
+        REBOOT_YN=$($RDYN "######  ?  Do you want to reboot the system")
+        if [[ "$REBOOT_YN" == "YES" ]];
+        then
+            echo "######   restarting system..."
+            shutdown -r now
+        fi
+    fi
+
+    echo "######"
+    CONTINUE_YN=$($RDYN "######  ?  Do you want to continue to set up the system")
+    if [[ "$CONTINUE_YN" != "YES" ]];
+    then
+        exit 0
+    fi
 fi
 
-if [ "$(cat /etc/pela/.config | grep 'lemp_install')" != "" ]
+if [[ "$($CHCG base_configure)" == "NO" || "$1" == "-f" ]];
 then
-	echo "######"
-	echo "######   it is LEMP system"
+    echo "######"
+    echo "######   base configure system"
 
-	cd $CWD/lemp
-	$CWD/lemp/run.sh
+    if [[ "$($CHCG base_configure)" == "NO" ]];
+    then
+        $ADCG base_configure
+    fi
+
+    FTP_YN="NO"
+    if [[ "$($CHCV vsftpd_install)" == "YES" ]];
+    then
+        FTP_YN="YES"
+    else
+        echo "######"
+        FTP_YN=$($RDYN "######  ?  Do you want to install FTP server (vsftpd)")
+        if [[ "$FTP_YN" == "YES" ]];
+        then
+            echo "######"
+            echo "######   istall vsftpd"
+            yum -y install vsftpd
+
+            $ADCV vsftpd_install yes
+
+            echo "######"
+            echo "######   configure vsftpd"
+            sed -i '/^#chroot_local_user=YES/c chroot_local_user=YES' /etc/vsftpd/vsftpd.conf
+
+            echo "######"
+            echo "######   restart vsftpd"
+            chkconfig vsftpd on
+            /etc/init.d/vsftpd restart
+        fi
+    fi
+
+    if [[ $FTP_YN == "YES" && "$($CHCV vsftpd_disable_anonym)" == "NO" ]];
+    then
+        echo "######"
+        FTP_ANONYM_YN=$($RDYN "######  ?  Do you want to disabled anonymous user for FTP")
+        if [[ "$FTP_ANONYM_YN" == "YES" ]];
+        then
+            sed -i '/^anonymous_enable=YES/c anonymous_enable=NO' /etc/vsftpd/vsftpd.conf
+            /etc/init.d/vsftpd restart
+
+            $ADCV vsftpd_disable_anonym yes
+        fi
+    fi
+
+    FIREWALL_YN="NO"
+    if [[ "$($CHCV firewall_enable)" == "YES" ]];
+    then
+        FIREWALL_YN="YES"
+    else
+        echo "######"
+        FIREWALL_YN=$($RDYN "######  ?  Do you want to enable FireWall")
+        if [[ "$FIREWALL_YN" == "YES" ]];
+        then
+            echo "######"
+            echo "######   enable FireWall"
+            $CWD/firewall/disable.sh
+            $CWD/firewall/enable.sh
+
+            $CWD/firewall/openport.sh 22
+            if [[ "$FTP_YN" == "YES" ]];
+            then
+                $CWD/firewall/openport.sh 20
+                $CWD/firewall/openport.sh 21
+            fi
+            $CWD/firewall/saveconfig.sh
+
+            $ADCV firewall_enable yes
+        fi
+    fi
+
+    if [[ "$FIREWALL_YN" == "YES" ]];
+    then
+        KNOCK_YN="NO"
+        if [[ "$($CHCV knockd_install)" == "YES" ]];
+        then
+            KNOCK_YN="YES"
+        else
+            echo "######"
+            KNOCK_YN=$($RDYN "######  ?  Do you want to install Knock server (knockd)")
+            if [[ "$KNOCK_YN" == "YES" ]];
+            then
+                echo "######"
+                echo "######   istall knockd"
+                echo $($GTLF http://li.nux.ro/download/nux/dextop/el6/$PLATFORM/ knock-server)
+                yum -y install $($GTLF http://li.nux.ro/download/nux/dextop/el6/$PLATFORM/ knock-server)
+
+                echo "######"
+                echo "######   configure knockd"
+                echo "[options]"      >  /etc/knockd.conf
+                echo "    UseSysLog"  >> /etc/knockd.conf
+
+                echo "######"
+                echo "######   restart knockd"
+                chkconfig knockd on
+                /etc/init.d/knockd restart
+
+                $ADCV knockd_install yes
+            fi
+        fi
+
+        if [[ "$KNOCK_YN" == "YES" && "$($CHCV knockd_ssh_port)" == "NO" ]];
+        then
+            echo "######"
+            KNOCK_SSH_YN=$($RDYN "######  ?  Do you want to configure knocking SSH port")
+            if [[ "$KNOCK_SSH_YN" == "YES" ]];
+            then
+                echo "######"
+                echo "######   configure knocking SSH port"
+                KNOCK_SSH_PORT=$($RDVL "######  ?  Please enter knocked open SSH port")
+
+                echo "[openSSH]"                                                              >> /etc/knockd.conf
+                echo "    sequence       = $KNOCK_SSH_PORT:udp, 1982:udp, 1985:udp, 2011:udp" >> /etc/knockd.conf
+                echo "    seq_timeout    = 5"                                                 >> /etc/knockd.conf
+                echo "    tcpflags       = syn,ack"                                           >> /etc/knockd.conf
+                echo "    start_command = $CWD/firewall/openport.sh 22"                       >> /etc/knockd.conf
+                echo "    cmd_timeout   = 10"                                                 >> /etc/knockd.conf
+                echo "    stop_command  = $CWD/firewall/closeport.sh 22"                      >> /etc/knockd.conf
+
+                $CWD/firewall/closeport.sh 22
+                $CWD/firewall/saveconfig.sh
+
+                /etc/init.d/knockd restart
+
+                $ADCV knockd_ssh_port $KNOCK_SSH_PORT
+            fi
+        fi
+
+        if [[ "$KNOCK_YN" == "YES" && "$FTP_YN" == "YES" && "$($CHCV knockd_ftp_port)" == "NO" ]];
+        then
+            echo "######"
+            KNOCK_FTP_PORT=$($RDYN "######  ?  Do you want to configure knocking FTP port")
+            if [[ "$KNOCK_FTP_PORT" == "YES" ]];
+            then
+                echo "######"
+                echo "######   configure knocking FTP port"
+                KNOCK_FTP_PORT=$($RDVL "######  ?  Please enter knocked open FTP port")
+
+                echo "[openFTP]"                                                                          >> /etc/knockd.conf
+                echo "    sequence       = $KNOCK_FTP_PORT:udp, 1982:udp, 1985:udp, 2011:udp"             >> /etc/knockd.conf
+                echo "    seq_timeout    = 5"                                                             >> /etc/knockd.conf
+                echo "    tcpflags       = syn,ack"                                                       >> /etc/knockd.conf
+                echo "    start_command = $CWD/firewall/openport.sh 20; $CWD/firewall/openport.sh 21"     >> /etc/knockd.conf
+                echo "    cmd_timeout   = 10"                                                             >> /etc/knockd.conf
+                echo "    stop_command  = $CWD/firewall/closeport.sh 20; $CWD/firewall/closeport.sh 21"   >> /etc/knockd.conf
+
+                $CWD/firewall/closeport.sh 20
+                $CWD/firewall/closeport.sh 21
+                $CWD/firewall/saveconfig.sh
+
+                /etc/init.d/knockd restart
+
+                $ADCV knockd_ftp_port $KNOCK_FTP_PORT
+            fi
+        fi
+
+        FAIL2BAN_YN="NO"
+        if [[ "$($CHCV fail2ban_install)" == "YES" ]];
+        then
+            FAIL2BAN_YN="YES"
+        else
+            echo "######"
+            FAIL2BAN_YN=$($RDYN "######  ?  Do you want to install Fail2Ban")
+            if [[ "$FAIL2BAN_YN" == "YES" ]];
+            then
+                echo "######"
+                echo "######   istall fail2ban"
+                yum -y install $($GTLF http://pkgs.repoforge.org/rpmforge-release/ rpmforge-release rf.$FILE_SUFIX.rpm)
+                yum -y install fail2ban
+
+                echo "######"
+                echo "######   configure fail2ban"
+
+                echo "######"
+                FAIL2BAN_DEST_EMAIL=$($RDVL "######  ?  Please enter email address to send a notification message")
+
+                echo "######"
+                echo "######   restart fail2ban"
+                chkconfig fail2ban on
+                /etc/init.d/fail2ban restart
+
+                $ADCV fail2ban_install yes
+                $ADCV fail2ban_dest_email $FAIL2BAN_DEST_EMAIL
+                $ADCV fail2ban_mashine_name $(uname -n)
+            fi
+        fi
+
+        FAIL2BAN_DEST_EMAIL=$($GTCV fail2ban_dest_email)
+        FAIL2BAN_MASHINE_NAME=$($GTCV fail2ban_mashine_name)
+
+        if [[ "$FAIL2BAN_YN" == "YES" && "$($CHCV fail2ban_ssh_enable)" == "NO" ]];
+        then
+            echo "######"
+            FAIL2BAN_SSH_YN=$($RDYN "######  ?  Do you want to configure file2ban 'ssh-iptables' port")
+            if [[ "$FAIL2BAN_SSH_YN" == "YES" ]];
+            then
+                echo "######"
+                echo "######   configure file2ban 'ssh-iptables' port"
+                sed -i '/^\[ssh-iptables\]/,+5c \[ssh-iptables\]\n\nenable   = true\nfilter   = sshd\naction   = iptables[name=SSH, port=ssh, protocol=tcp]\n\t   sendmail-whois[name=SSH, dest=$FAIL2BAN_DEST_EMAIL, sender=fail2ban@$FAIL2BAN_MASHINE_NAME]' /etc/fail2ban/jail.conf
+                /etc/init.d/fail2ban restart
+
+                $ADCV fail2ban_ssh_enable yes
+            fi
+        fi
+
+        if [[ "$FAIL2BAN_YN" == "YES" && "$FTP_YN" == "YES" && "$($CHCV fail2ban_ftp_enable)" == "NO" ]];
+        then
+            echo "######"
+            FAIL2BAN_FTP_YN=$($RDYN "######  ?  Do you want to configure file2ban 'vsftpd-iptables' port")
+            if [[ "$FAIL2BAN_FTP_YN" == "YES" ]];
+            then
+                echo "######"
+                echo "######   configure file2ban 'vsftpd-iptables' port"
+                sed -i '/^\[vsftpd-iptables\]/,+5c \[vsftpd-iptables\]\n\nenable   = true\nfilter   = vsftpd\naction   = iptables[name=VSFTPD, port=ftp, protocol=tcp]\n\t   sendmail-whois[name=VSFTPD, dest=$FAIL2BAN_DEST_EMAIL, sender=fail2ban@$FAIL2BAN_MASHINE_NAME]' /etc/fail2ban/jail.conf
+                /etc/init.d/fail2ban restart
+
+                $ADCV fail2ban_ftp_enable yes
+            fi
+        fi
+    fi
+
+    echo "######"
+    CONTINUE_YN=$($RDYN "######  ?  Do you want to continue to set up the system")
+    if [[ "$CONTINUE_YN" != "YES" ]];
+    then
+        exit 0
+    fi
+fi
+
+if [[ "$($CHCG system_configure)" == "NO" ]];
+then
+    echo "######"
+    echo "######   create system"
+
+    echo "######"
+    echo "######    1 - create LEMP system"
+
+    echo "######"
+    COMMAND=$($RDVL "######  ?  Please choose command")
+    if [[ "$COMMAND" == "1" ]];
+    then
+        cd $CWD/lemp
+        $CWD/lemp/install.sh
+
+        $ADCG system_configure
+        $ADCV lemp_install yes
+    else
+        echo "######   Error: selected wrong number"
+    fi
+
+    echo "######"
+    CONTINUE_YN=$($RDYN "######  ?  Do you want to continue to set up the system")
+    if [[ "$CONTINUE_YN" != "YES" ]];
+    then
+        exit 0
+    fi
+fi
+
+if [[ "$($CHCV lemp_install)" == "NO" ]];
+then
+    echo "######"
+    echo "######   it is LEMP system"
+
+    cd $CWD/lemp
+    $CWD/lemp/run.sh
 fi

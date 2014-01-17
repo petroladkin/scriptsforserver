@@ -1,11 +1,29 @@
 CWD=$(pwd)
+PLATFORM=$(uname -m)
+FILE_SUFIX=$PLATFORM
+if [[ "$PLATFORM" == "i386" ]];
+then
+    FILE_SUFIX="i686"
+fi
+
+RDYN="$CWD/../../helpers/read_yn.sh"
+RDVL="$CWD/../../helpers/read_value.sh"
+CRCF="$CWD/../../helpers/create_config.sh"
+ADCG="$CWD/../../helpers/add_config_group.sh"
+ADCV="$CWD/../../helpers/add_config_value.sh"
+CHCG="$CWD/../../helpers/check_config_group.sh"
+CHCV="$CWD/../../helpers/check_config_value.sh"
+GTCV="$CWD/../../helpers/get_config_value.sh"
+GTLF="$CWD/../../helpers/get_latest_file.sh"
+
 
 echo "######"
 echo "######   create LEMP system"
 
 echo "######"
 echo "######   install mysql mysql-server nginx php-fpm php-mysql"
-yum -y install http://download.fedoraproject.org/pub/epel/6/i386/epel-release-6-8.noarch.rpm http://rpms.famillecollet.com/enterprise/remi-release-6.rpm
+yum -y install $($GTLF http://download.fedoraproject.org/pub/epel/6/$PLATFORM/ epel-release)
+yum -y install http://rpms.famillecollet.com/enterprise/remi-release-6.rpm
 yum -y install mysql mysql-server nginx
 yum -y --enablerepo=remi install php-fpm php-mysql php-mcrypt phpmyadmin
 
@@ -22,7 +40,7 @@ sed -i '/^group/c group = nginx' /etc/php-fpm.d/www.conf
 sed -i '/^http {/a server_names_hash_bucket_size 64;' /etc/nginx/nginx.conf
 
 echo "######"
-read -p "######  ?  Please enter blowfish_secret for PHPMyAdmin: " SECRET_CODE
+SECRET_CODE=$($RDVL "######  ?  Please enter blowfish_secret for PHPMyAdmin")
 sed -i "/blowfish_secret/c \$cfg['blowfish_secret'] = '$SECRET_CODE';" /usr/share/phpmyadmin/config.inc.php
 
 mkdir /var/lib/php/session

@@ -1,15 +1,24 @@
 echo "####################################"
 echo "####################################"
-echo "######"
-
-CWD=$(pwd)
-
-if [[ "$(cat /etc/issue | grep 'CentOS')" != "" ]];
+if [[$1 == "--help"]];
 then
-cd $CWD/centos
-$CWD/centos/run.sh
+	echo ""
+	echo "   ./run.sh [-d] [-h]"
+	echo ""
+	echo "      - h: print this help"
+	echo "      - f: run full script, if you do not installed some sort of component it is proposed to install"
+	echo ""
 else
-echo "######   Error: not supported linux system"
+	echo "######"
+	CWD=$(pwd)
+
+	if [[ "$(cat /etc/issue | grep 'CentOS')" != "" ]];
+	then
+		cd $CWD/centos
+		$CWD/centos/run.sh $1
+	else
+		echo "######   Error: not supported linux system"
+	fi
+	echo "######"
 fi
-echo "######"
 echo "####################################"

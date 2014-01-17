@@ -1,0 +1,1 @@
+echo $(curl "http://update.joomla.org/core/sts/extension_sts.xml" | sed -n '/Joomla_3.2/p' | tr ">" "\n" | tr "<" "\n" | sed -n '/Stable-Update_Package.zip$/p' | sed -n '$p')
