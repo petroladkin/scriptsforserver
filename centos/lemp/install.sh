@@ -19,9 +19,7 @@ echo "######   create LEMP system"
 
 echo "######"
 echo "######   install mysql mysql-server nginx php-fpm php-mysql"
-echo $($GTLF http://fedora.ip-connect.vn.ua/fedora-epel/6/$PLATFORM/ epel-release)
-exit 0
-yum -y install $($GTLF http://download.fedoraproject.org/pub/epel/6/$PLATFORM/ epel-release)
+yum -y install $($GTLF http://fedora.ip-connect.vn.ua/fedora-epel/6/$PLATFORM/ epel-release)
 yum -y install http://rpms.famillecollet.com/enterprise/remi-release-6.rpm
 yum -y install mysql mysql-server nginx
 yum -y --enablerepo=remi install php-fpm php-mysql php-mcrypt phpmyadmin
