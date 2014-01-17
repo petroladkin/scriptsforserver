@@ -371,8 +371,8 @@ then
         cd $CWD/lemp
         $CWD/lemp/install.sh
 
-        $ADCG system_configure
-        $ADCV lemp_install yes
+        # $ADCG system_configure
+        # $ADCV lemp_install yes
     else
         echo "######   Error: selected wrong number"
     fi
