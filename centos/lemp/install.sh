@@ -27,9 +27,12 @@ yum -y --enablerepo=remi install php-fpm php-mysql php-mcrypt phpmyadmin
 echo "######"
 echo "######   configure"
 
-$CWD/../firewall/openport.sh 80
-$CWD/../firewall/closeport.sh 22
-$CWD/../firewall/saveconfig.sh
+if [[ "$($CHCV firewall_enable)" == "YES" ]];
+then
+    $CWD/../firewall/openport.sh 80
+    $CWD/../firewall/closeport.sh 22
+    $CWD/../firewall/saveconfig.sh
+fi
 
 sed -i '/^;cgi.fix_pathinfo/c cgi.fix_pathinfo=0' /etc/php.ini
 sed -i '/^user/c user = nginx' /etc/php-fpm.d/www.conf

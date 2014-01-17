@@ -110,6 +110,12 @@ echo "    server_name $SERVER_NAME www.$SERVER_NAME;
 chown nginx:nginx /etc/nginx/conf.d/$FOLDER_NAME.conf
 chmod 644 /etc/nginx/conf.d/$FOLDER_NAME.conf
 
+if [[ "$($CHCV firewall_enable)" == "YES" ]];
+then
+    $CWD/../firewall/openport.sh $SECOND_PORT
+    $CWD/../firewall/saveconfig.sh
+fi
+
 echo "######"
 echo "######   restart nginx php-fpm"
 /etc/init.d/php-fpm restart
