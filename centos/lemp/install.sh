@@ -35,9 +35,11 @@ then
 fi
 
 sed -i '/^;cgi.fix_pathinfo/c cgi.fix_pathinfo=0' /etc/php.ini
+sed -i '/^upload_max_filesize/c upload_max_filesize=64M' /etc/php.ini
+sed -i '/^post_max_size/c post_max_size=64M' /etc/php.ini
 sed -i '/^user/c user = nginx' /etc/php-fpm.d/www.conf
 sed -i '/^group/c group = nginx' /etc/php-fpm.d/www.conf
-sed -i '/^http {/a server_names_hash_bucket_size 64;' /etc/nginx/nginx.conf
+sed -i '/^http {/a server_names_hash_bucket_size 64;\nclient_max_body_size 64m;' /etc/nginx/nginx.conf
 
 echo "######"
 SECRET_CODE=$($RDVL "######  ?  Please enter blowfish_secret for PHPMyAdmin")
