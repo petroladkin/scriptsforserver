@@ -16,8 +16,6 @@ else
 		yum -y install git
 		cd /usr/local
 		git clone https://github.com/petroladkin/scriptsforserver.git
-		cd scriptsforserver
-		./run.sh
 	fi
 	echo "######"
 fi
