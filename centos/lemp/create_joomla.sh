@@ -121,13 +121,14 @@ echo "######   restart nginx php-fpm"
 /etc/init.d/php-fpm restart
 /etc/init.d/nginx restart
 
-if [[ "$($CHCV vsftpd_install)" == "YES" ]];
-then
-    useradd $FOLDER_NAME -g nginx -p $FOLDER_NAME -d /usr/share/nginx/html/$FOLDER_NAME
-fi
+# if [[ "$($CHCV vsftpd_install)" == "YES" ]];
+# then
+#     useradd $FOLDER_NAME -g nginx -p $FOLDER_NAME -d /usr/share/nginx/html/$FOLDER_NAME
+# fi
 
 $ADCG joomla_$FOLDER_NAME
-$ADCV joomla_site_$FOLDER_NAME $FOLDER_NAME
+$ADCV joomla_url_$FOLDER_NAME $SERVER_NAME
+$ADCV joomla_home_$FOLDER_NAME $FOLDER_NAME
 if [[ "$SECONDPORT_YN" == "YES" ]];
 then
     $ADCV joomla_second_port_$FOLDER_NAME $SECOND_PORT
