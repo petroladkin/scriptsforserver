@@ -243,7 +243,7 @@ then
                 echo "    seq_timeout    = 5"                                                 >> /etc/knockd.conf
                 echo "    tcpflags       = syn,ack"                                           >> /etc/knockd.conf
                 echo "    start_command = $CWD/firewall/openport.sh 22"                       >> /etc/knockd.conf
-                echo "    cmd_timeout   = 10"                                                 >> /etc/knockd.conf
+                echo "    cmd_timeout   = 1000"                                               >> /etc/knockd.conf
                 echo "    stop_command  = $CWD/firewall/closeport.sh 22"                      >> /etc/knockd.conf
 
                 $CWD/firewall/closeport.sh 22
