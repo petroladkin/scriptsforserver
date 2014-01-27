@@ -3,7 +3,7 @@ echo "####################################"
 if [[$1 == "--help"]];
 then
 	echo ""
-	echo "   ./setup.sh [-h]"
+	echo "   ./install.sh [-h]"
 	echo ""
 	echo "      - h: print this help"
 	echo ""
@@ -16,6 +16,8 @@ else
 		yum -y install git
 		cd /usr/local
 		git clone https://github.com/petroladkin/scriptsforserver.git
+		cd scriptsforserver
+		./run.sh
 	fi
 	echo "######"
 fi
